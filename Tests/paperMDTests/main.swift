@@ -8,4 +8,8 @@ TestKit.suite("Version") {
     TestKit.expectEqual(paperMDVersion, "1.0.0", "core version constant is reachable from tests")
 }
 
+OutlineParserTests.run()
+ThemeTests.run()
+SessionTests.run()
+
 TestKit.finish()
