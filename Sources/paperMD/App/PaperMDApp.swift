@@ -11,5 +11,9 @@ struct PaperMDApp: App {
                 .frame(minWidth: 600, minHeight: 400)
         }
         .windowToolbarStyle(.unified)
+
+        Settings {
+            SettingsView()
+        }
     }
 }

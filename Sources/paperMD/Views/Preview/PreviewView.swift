@@ -2,6 +2,16 @@ import SwiftUI
 import WebKit
 import paperMDCore
 
+/// Imperative handle to the preview web view (e.g. scroll to a heading from the
+/// outline while in preview mode).
+final class PreviewController: ObservableObject {
+    fileprivate weak var webView: WKWebView?
+
+    func scrollToHeading(_ index: Int) {
+        webView?.evaluateJavaScript("scrollToHeading(\(index))", completionHandler: nil)
+    }
+}
+
 /// Live markdown preview backed by a `WKWebView` running the bundled markdown-it
 /// pipeline. Re-renders are debounced and the latest text is buffered until the
 /// web view finishes loading.
@@ -9,6 +19,8 @@ struct PreviewView: NSViewRepresentable {
     var text: String
     var baseDirectory: URL?
     var debounceMs: Int
+    var themeVars: [String: String] = [:]
+    var controller: PreviewController?
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -17,6 +29,7 @@ struct PreviewView: NSViewRepresentable {
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.setValue(false, forKey: "drawsBackground") // transparent until CSS paints
         context.coordinator.webView = webView
+        controller?.webView = webView
 
         guard let indexURL = Bundle.main.url(
             forResource: "index", withExtension: "html", subdirectory: "Preview") ??
@@ -31,6 +44,7 @@ struct PreviewView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
+        context.coordinator.applyTheme(themeVars)
         context.coordinator.scheduleRender(text: text,
                                            baseDirectory: baseDirectory,
                                            debounceMs: debounceMs)
@@ -46,7 +60,20 @@ struct PreviewView: NSViewRepresentable {
         private var loaded = false
         private var pendingText: String?
         private var pendingBase: URL?
+        private var pendingTheme: [String: String]?
         private var work: DispatchWorkItem?
+
+        func applyTheme(_ vars: [String: String]) {
+            guard !vars.isEmpty else { return }
+            pendingTheme = vars
+            if loaded, let webView { pushTheme(webView, vars) }
+        }
+
+        private func pushTheme(_ webView: WKWebView, _ vars: [String: String]) {
+            guard let data = try? JSONSerialization.data(withJSONObject: vars),
+                  let json = String(data: data, encoding: .utf8) else { return }
+            webView.evaluateJavaScript("setThemeVars(\(json))", completionHandler: nil)
+        }
 
         func scheduleRender(text: String, baseDirectory: URL?, debounceMs: Int) {
             pendingText = text
@@ -69,6 +96,7 @@ struct PreviewView: NSViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             loaded = true
+            if let theme = pendingTheme { pushTheme(webView, theme) }
             flush()
         }
 

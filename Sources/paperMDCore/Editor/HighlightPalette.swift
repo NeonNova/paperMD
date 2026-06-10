@@ -13,16 +13,20 @@ public struct HighlightPalette {
     public var quote: NSColor
     public var listMarker: NSColor
     public var wikilink: NSColor
+    public var background: NSColor
 
     public var bodyFont: NSFont
     public var codeFont: NSFont
 
     public init(body: NSColor, heading: NSColor, emphasis: NSColor, code: NSColor,
                 codeBackground: NSColor, link: NSColor, quote: NSColor,
-                listMarker: NSColor, wikilink: NSColor, bodyFont: NSFont, codeFont: NSFont) {
+                listMarker: NSColor, wikilink: NSColor,
+                background: NSColor = .textBackgroundColor,
+                bodyFont: NSFont, codeFont: NSFont) {
         self.body = body; self.heading = heading; self.emphasis = emphasis
         self.code = code; self.codeBackground = codeBackground; self.link = link
         self.quote = quote; self.listMarker = listMarker; self.wikilink = wikilink
+        self.background = background
         self.bodyFont = bodyFont; self.codeFont = codeFont
     }
 
@@ -38,6 +42,7 @@ public struct HighlightPalette {
             quote: .secondaryLabelColor,
             listMarker: .controlAccentColor,
             wikilink: .controlAccentColor,
+            background: .textBackgroundColor,
             bodyFont: .systemFont(ofSize: bodySize),
             codeFont: .monospacedSystemFont(ofSize: codeSize, weight: .regular)
         )

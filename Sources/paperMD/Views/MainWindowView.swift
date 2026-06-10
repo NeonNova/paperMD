@@ -2,63 +2,87 @@ import SwiftUI
 import AppKit
 import paperMDCore
 
-/// The main window. Edits the workspace's active document; sidebar, tabs,
-/// preview, and outline are layered on in later tasks.
+/// The main window: sidebar (file tree) · tabbed content (editor/preview/split)
+/// · outline inspector.
 struct MainWindowView: View {
     @State private var workspace = WorkspaceViewModel()
+    @State private var theme = ThemeManager.shared
     @AppStorage("editorMode") private var mode: EditorMode = .edit
     @AppStorage("previewDebounceMs") private var previewDebounceMs: Int = 200
+    @AppStorage("showOutline") private var showOutline = false
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var wordWrap = true
+    @State private var didRestore = false
     @StateObject private var editorController = EditorController()
+    @StateObject private var previewController = PreviewController()
 
     var body: some View {
-        Group {
-            if let doc = workspace.active {
-                content(for: doc).id(doc.id)
-            } else {
-                emptyState
-            }
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            FileTreeView(workspace: workspace)
+                .navigationSplitViewColumnWidth(min: 180, ideal: 240, max: 400)
+        } detail: {
+            detailPane
         }
-        .frame(minWidth: 500, minHeight: 360)
         .toolbar { toolbarContent }
-        .dropDestination(for: URL.self) { urls, _ in
-            handleDrop(urls); return true
-        }
+        .dropDestination(for: URL.self) { urls, _ in handleDrop(urls); return true }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
             workspace.saveAll()
         }
-        .background {
-            // Invisible buttons providing ⌘1/⌘2/⌘3 mode shortcuts.
-            Group {
-                Button("") { mode = .edit }.keyboardShortcut("1", modifiers: .command)
-                Button("") { mode = .split }.keyboardShortcut("2", modifiers: .command)
-                Button("") { mode = .preview }.keyboardShortcut("3", modifiers: .command)
+        .background { shortcuts }
+        .tint(theme.accent)
+        .onAppear {
+            theme.applyAppearance()
+            if !didRestore { didRestore = true; workspace.restoreOnLaunch() }
+        }
+    }
+
+    // MARK: Detail pane
+
+    @ViewBuilder
+    private var detailPane: some View {
+        VStack(spacing: 0) {
+            if !workspace.documents.isEmpty {
+                TabBarView(workspace: workspace)
+                Divider()
             }
-            .opacity(0)
+            HStack(spacing: 0) {
+                Group {
+                    if let doc = workspace.active {
+                        content(for: doc).id(doc.id)
+                    } else {
+                        emptyState
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                if showOutline, let doc = workspace.active {
+                    Divider()
+                    OutlineView(text: doc.text) { item, headingIndex in
+                        editorController.goToLine(item.line + 1)
+                        previewController.scrollToHeading(headingIndex)
+                    }
+                    .frame(width: 220)
+                }
+            }
         }
     }
 
     @ViewBuilder
     private func content(for doc: DocumentViewModel) -> some View {
         switch mode {
-        case .edit:
-            editor(doc)
-        case .preview:
-            preview(doc)
-        case .split:
-            HSplitView {
-                editor(doc)
-                preview(doc)
-            }
+        case .edit:    editor(doc)
+        case .preview: preview(doc)
+        case .split:   HSplitView { editor(doc); preview(doc) }
         }
     }
 
     private func editor(_ doc: DocumentViewModel) -> some View {
         EditorView(
             text: documentBinding(doc),
-            palette: .system(),
+            palette: theme.palette,
             wordWrap: wordWrap,
             controller: editorController,
+            initialCursorOffset: doc.cursorOffset,
             onCursorChange: { doc.cursorOffset = $0 }
         )
         .frame(minWidth: 240)
@@ -68,7 +92,9 @@ struct MainWindowView: View {
         PreviewView(
             text: doc.text,
             baseDirectory: doc.url?.deletingLastPathComponent(),
-            debounceMs: previewDebounceMs
+            debounceMs: previewDebounceMs,
+            themeVars: theme.cssVars,
+            controller: previewController
         )
         .frame(minWidth: 240)
     }
@@ -79,9 +105,7 @@ struct MainWindowView: View {
 
     private var emptyState: some View {
         VStack(spacing: 16) {
-            Image(systemName: "doc.text")
-                .font(.system(size: 48))
-                .foregroundStyle(.tertiary)
+            Image(systemName: "doc.text").font(.system(size: 48)).foregroundStyle(.tertiary)
             Text("No document open").font(.title3).foregroundStyle(.secondary)
             HStack {
                 Button("Open File…") { workspace.showOpenFileDialog() }
@@ -92,17 +116,15 @@ struct MainWindowView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    // MARK: Toolbar
+
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
-            Button { workspace.showOpenFileDialog() } label: {
-                Image(systemName: "doc.badge.plus")
-            }
-            .help("Open file")
-            Button { workspace.showOpenFolderDialog() } label: {
-                Image(systemName: "folder.badge.plus")
-            }
-            .help("Open folder")
+            Button { workspace.showOpenFileDialog() } label: { Image(systemName: "doc.badge.plus") }
+                .help("Open file")
+            Button { workspace.showOpenFolderDialog() } label: { Image(systemName: "folder.badge.plus") }
+                .help("Open folder")
         }
         ToolbarItemGroup(placement: .principal) {
             Picker("Mode", selection: $mode) {
@@ -113,10 +135,34 @@ struct MainWindowView: View {
             .pickerStyle(.segmented)
             .help("Edit / Split / Preview  (⌘1 / ⌘2 / ⌘3)")
         }
-        ToolbarItem {
+        ToolbarItemGroup {
             Toggle(isOn: $wordWrap) { Image(systemName: "text.word.spacing") }
                 .help("Word wrap")
+            Toggle(isOn: $showOutline) { Image(systemName: "list.bullet.indent") }
+                .help("Toggle outline (⌘⇧U)")
         }
+    }
+
+    // MARK: Shortcuts (invisible buttons)
+
+    private var shortcuts: some View {
+        Group {
+            Button("") { mode = .edit }.keyboardShortcut("1", modifiers: .command)
+            Button("") { mode = .split }.keyboardShortcut("2", modifiers: .command)
+            Button("") { mode = .preview }.keyboardShortcut("3", modifiers: .command)
+            Button("") { withAnimation { columnVisibility = columnVisibility == .all ? .detailOnly : .all } }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+            Button("") { showOutline.toggle() }.keyboardShortcut("u", modifiers: [.command, .shift])
+            Button("") { workspace.newUntitled() }.keyboardShortcut("t", modifiers: .command)
+            Button("") { workspace.closeActiveTab() }.keyboardShortcut("w", modifiers: .command)
+            Button("") { workspace.selectNextTab() }.keyboardShortcut(.tab, modifiers: .control)
+            Button("") { workspace.selectPreviousTab() }.keyboardShortcut(.tab, modifiers: [.control, .shift])
+            Button("") { workspace.saveActive() }.keyboardShortcut("s", modifiers: .command)
+            Button("") { theme.adjustBodySize(by: 1) }.keyboardShortcut("+", modifiers: .command)
+            Button("") { theme.adjustBodySize(by: 1) }.keyboardShortcut("=", modifiers: .command)
+            Button("") { theme.adjustBodySize(by: -1) }.keyboardShortcut("-", modifiers: .command)
+        }
+        .opacity(0)
     }
 
     private func handleDrop(_ urls: [URL]) {

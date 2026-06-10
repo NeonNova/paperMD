@@ -22,6 +22,7 @@ let package = Package(
         .target(
             name: "paperMDCore",
             path: "Sources/paperMDCore",
+            resources: [.copy("Resources")],
             swiftSettings: [mode]
         ),
         .executableTarget(

@@ -51,6 +51,7 @@ struct EditorView: NSViewRepresentable {
     var palette: HighlightPalette
     var wordWrap: Bool
     var controller: EditorController
+    var initialCursorOffset: Int = 0
     var onCursorChange: (Int) -> Void = { _ in }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -59,6 +60,7 @@ struct EditorView: NSViewRepresentable {
         let (scrollView, textView) = MarkdownTextView.makeScrollView()
         textView.delegate = context.coordinator
         textView.string = text
+        applyTheme(to: textView, scrollView: scrollView)
 
         let highlighter = MarkdownHighlighter(palette: palette)
         highlighter.attach(to: textView.textStorage!)
@@ -72,6 +74,13 @@ struct EditorView: NSViewRepresentable {
 
         controller.textView = textView
         textView.setWordWrap(wordWrap)
+
+        // Restore caret position (from a restored session).
+        let clamped = max(0, min(initialCursorOffset, (text as NSString).length))
+        if clamped > 0 {
+            textView.setSelectedRange(NSRange(location: clamped, length: 0))
+            DispatchQueue.main.async { textView.scrollRangeToVisible(NSRange(location: clamped, length: 0)) }
+        }
         return scrollView
     }
 
@@ -89,7 +98,16 @@ struct EditorView: NSViewRepresentable {
 
         context.coordinator.highlighter?.palette = palette
         context.coordinator.ruler?.palette = palette
+        applyTheme(to: textView, scrollView: scrollView)
         textView.setWordWrap(wordWrap)
+    }
+
+    private func applyTheme(to textView: MarkdownTextView, scrollView: NSScrollView) {
+        textView.backgroundColor = palette.background
+        textView.insertionPointColor = palette.heading
+        textView.selectedTextAttributes = [.backgroundColor: palette.heading.withAlphaComponent(0.25)]
+        scrollView.backgroundColor = palette.background
+        scrollView.drawsBackground = true
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {

@@ -26,8 +26,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Flush unsaved work before the app quits.
+    /// Flush unsaved work and persist the session before the app quits.
     func applicationWillTerminate(_ notification: Notification) {
-        WorkspaceViewModel.shared?.saveAll()
+        WorkspaceViewModel.shared?.flushOnQuit()
     }
 }

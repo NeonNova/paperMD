@@ -95,6 +95,13 @@ final class DocumentViewModel: Identifiable {
         return .none
     }
 
+    /// Marks the buffer dirty (used when reopening a recovered journal so it
+    /// keeps re-journaling until the user saves it).
+    func markDirty() {
+        isDirty = true
+        scheduleAutosave()
+    }
+
     /// Replaces the buffer without marking it dirty (used for reloads).
     func applyExternal(_ newText: String) {
         isApplyingExternalChange = true

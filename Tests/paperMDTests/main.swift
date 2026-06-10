@@ -13,5 +13,8 @@ ThemeTests.run()
 SessionTests.run()
 HighlighterTests.run()
 FileServiceTests.run()
+FileTreeTests.run()
+SessionStoreTests.run()
+ThemeLoaderTests.run()
 
 TestKit.finish()
