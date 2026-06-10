@@ -34,6 +34,10 @@ final class LineNumberRulerView: NSRulerView {
     @objc private func boundsDidChange() { needsDisplay = true }
 
     override func drawHashMarksAndLabels(in rect: NSRect) {
+        // Fill the gutter with the editor background so it's themed, not white.
+        palette.background.setFill()
+        bounds.fill()
+
         guard let textView,
               let layoutManager = textView.layoutManager,
               let container = textView.textContainer else { return }
@@ -51,12 +55,15 @@ final class LineNumberRulerView: NSRulerView {
         let glyphRange = layoutManager.glyphRange(forBoundingRect: visibleRect, in: container)
         let charRange = layoutManager.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
 
-        // Line number of the first visible character.
+        // Line number of the first visible character: count newline characters
+        // in the prefix [0, location). (NSString.replacingOccurrences(range:)
+        // returns the *whole* string with replacements scoped to the range, so
+        // it cannot be used to count within a prefix.)
         var lineNumber = 1
-        if charRange.location > 0 {
-            lineNumber += content.replacingOccurrences(
-                of: "[^\n]", with: "", options: .regularExpression,
-                range: NSRange(location: 0, length: charRange.location)).count
+        var i = 0
+        while i < charRange.location {
+            if content.character(at: i) == 0x0A { lineNumber += 1 }
+            i += 1
         }
 
         var index = charRange.location

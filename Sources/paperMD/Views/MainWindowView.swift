@@ -21,19 +21,35 @@ struct MainWindowView: View {
     @StateObject private var previewController = PreviewController()
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            FileTreeView(workspace: workspace)
-                .navigationSplitViewColumnWidth(min: 180, ideal: 240, max: 400)
-        } detail: {
-            detailPane
-        }
-        .toolbar { toolbarContent }
-        .dropDestination(for: URL.self) { urls, _ in handleDrop(urls); return true }
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
-            workspace.saveAll()
+        ZStack {
+            NavigationSplitView(columnVisibility: $columnVisibility) {
+                FileTreeView(workspace: workspace, theme: theme)
+                    .navigationSplitViewColumnWidth(min: 180, ideal: 240, max: 400)
+            } detail: {
+                detailPane
+                    .background(Color(theme.current.backgroundColor))
+            }
+            .toolbar { toolbarContent }
+            .dropDestination(for: URL.self) { urls, _ in handleDrop(urls); return true }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
+                workspace.saveAll()
+            }
+
+            // Command palette lives at the window root (not as a NavigationSplitView
+            // overlay, which doesn't reliably cover the whole window).
+            if showPalette {
+                Color.black.opacity(0.15)
+                    .ignoresSafeArea()
+                    .onTapGesture { showPalette = false }
+                CommandPaletteView(isPresented: $showPalette) { handle($0) }
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .padding(.top, 80)
+                    .transition(.opacity)
+            }
         }
         .tint(theme.accent)
-        .overlay(alignment: .top) { paletteOverlay }
+        .font(theme.interfaceFont)
+        .background(WindowThemer(background: theme.current.backgroundColor))
         .sheet(isPresented: $showGoToLine) {
             GoToLineSheet(isPresented: $showGoToLine) { editorController.goToLine($0) }
         }
@@ -52,18 +68,6 @@ struct MainWindowView: View {
                     hasLaunchedBefore = true
                     showFirstLaunch = true
                 }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var paletteOverlay: some View {
-        if showPalette {
-            ZStack(alignment: .top) {
-                Color.black.opacity(0.001)
-                    .onTapGesture { showPalette = false }
-                CommandPaletteView(isPresented: $showPalette) { handle($0) }
-                    .padding(.top, 60)
             }
         }
     }
@@ -108,7 +112,7 @@ struct MainWindowView: View {
     private var detailPane: some View {
         VStack(spacing: 0) {
             if !workspace.documents.isEmpty {
-                TabBarView(workspace: workspace)
+                TabBarView(workspace: workspace, theme: theme)
                 Divider()
             }
             HStack(spacing: 0) {
@@ -130,7 +134,34 @@ struct MainWindowView: View {
                     .frame(width: 220)
                 }
             }
+            if workspace.active != nil {
+                Divider()
+                zoomBar
+            }
         }
+    }
+
+    /// Bottom status bar with a zoom slider (controls editor/preview font size),
+    /// like the zoom control in native Mac apps.
+    private var zoomBar: some View {
+        HStack(spacing: 8) {
+            Spacer()
+            Button { theme.adjustBodySize(by: -1) } label: { Image(systemName: "textformat.size.smaller") }
+                .buttonStyle(.plain).help("Smaller")
+            Slider(value: Binding(get: { theme.bodySize },
+                                  set: { theme.bodySize = $0.rounded() }),
+                   in: 11...30)
+                .frame(width: 120)
+                .controlSize(.mini)
+            Button { theme.adjustBodySize(by: 1) } label: { Image(systemName: "textformat.size.larger") }
+                .buttonStyle(.plain).help("Larger")
+            Text("\(Int(theme.bodySize)) pt")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+                .frame(width: 36, alignment: .trailing)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 26)
+        .background(Color(theme.current.surfaceColor))
     }
 
     @ViewBuilder

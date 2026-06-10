@@ -2,17 +2,31 @@ import AppKit
 
 /// User typography preferences. An empty font name means "use the system font".
 public struct Typography: Equatable, Sendable {
+    /// Font for app chrome (sidebar, tabs, menus).
+    public var interfaceFontName: String
+    public var interfaceSize: CGFloat
+    /// Font for editor + preview body text.
     public var bodyFontName: String
     public var bodySize: CGFloat
+    /// Font for code (editor code spans/blocks + preview code).
     public var codeFontName: String
     public var codeSize: CGFloat
 
-    public init(bodyFontName: String = "", bodySize: CGFloat = 15,
+    public init(interfaceFontName: String = "", interfaceSize: CGFloat = 13,
+                bodyFontName: String = "", bodySize: CGFloat = 15,
                 codeFontName: String = "", codeSize: CGFloat = 13) {
+        self.interfaceFontName = interfaceFontName
+        self.interfaceSize = interfaceSize
         self.bodyFontName = bodyFontName
         self.bodySize = bodySize
         self.codeFontName = codeFontName
         self.codeSize = codeSize
+    }
+
+    public func interfaceFont() -> NSFont {
+        interfaceFontName.isEmpty
+            ? .systemFont(ofSize: interfaceSize)
+            : (NSFont(name: interfaceFontName, size: interfaceSize) ?? .systemFont(ofSize: interfaceSize))
     }
 
     public func bodyFont() -> NSFont {

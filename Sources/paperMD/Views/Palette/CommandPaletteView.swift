@@ -49,9 +49,9 @@ struct CommandPaletteView: View {
             }
         }
         .frame(width: 520)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(.separator))
-        .shadow(radius: 24, y: 8)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.12)))
+        .shadow(radius: 30, y: 10)
         .onAppear { fieldFocused = true }
         .background { keyHandlers }
     }

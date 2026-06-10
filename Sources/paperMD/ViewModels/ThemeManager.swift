@@ -19,6 +19,8 @@ final class ThemeManager {
     var themeName: String { didSet { defaults.set(themeName, forKey: "themeName"); applyAppearance() } }
     var appearanceMode: AppearanceMode { didSet { defaults.set(appearanceMode.rawValue, forKey: "appearanceMode"); applyAppearance() } }
 
+    var interfaceFontName: String { didSet { defaults.set(interfaceFontName, forKey: "interfaceFontName") } }
+    var interfaceSize: Double { didSet { defaults.set(interfaceSize, forKey: "interfaceSize") } }
     var bodyFontName: String { didSet { defaults.set(bodyFontName, forKey: "bodyFontName") } }
     var bodySize: Double { didSet { defaults.set(bodySize, forKey: "bodySize") } }
     var codeFontName: String { didSet { defaults.set(codeFontName, forKey: "codeFontName") } }
@@ -30,6 +32,8 @@ final class ThemeManager {
         themes = ThemeLoader.allThemes()
         themeName = defaults.string(forKey: "themeName") ?? "System Light"
         appearanceMode = AppearanceMode(rawValue: defaults.string(forKey: "appearanceMode") ?? "system") ?? .system
+        interfaceFontName = defaults.string(forKey: "interfaceFontName") ?? ""
+        interfaceSize = defaults.object(forKey: "interfaceSize") as? Double ?? 13
         bodyFontName = defaults.string(forKey: "bodyFontName") ?? ""
         bodySize = defaults.object(forKey: "bodySize") as? Double ?? 15
         codeFontName = defaults.string(forKey: "codeFontName") ?? ""
@@ -46,13 +50,21 @@ final class ThemeManager {
     }
 
     var typography: Typography {
-        Typography(bodyFontName: bodyFontName, bodySize: bodySize,
+        Typography(interfaceFontName: interfaceFontName, interfaceSize: interfaceSize,
+                   bodyFontName: bodyFontName, bodySize: bodySize,
                    codeFontName: codeFontName, codeSize: codeSize)
     }
 
     var palette: HighlightPalette { current.palette(typography: typography) }
     var cssVars: [String: String] { current.cssVars(typography: typography) }
     var accent: Color { Color(current.accentColor) }
+
+    /// SwiftUI font for app chrome (sidebar, tabs, controls).
+    var interfaceFont: Font {
+        interfaceFontName.isEmpty
+            ? .system(size: interfaceSize)
+            : .custom(interfaceFontName, size: interfaceSize)
+    }
 
     // MARK: Actions
 
@@ -78,12 +90,17 @@ final class ThemeManager {
         bodySize = min(24, max(11, bodySize + delta))
     }
 
-    /// Applies the chosen appearance to the whole app (chrome, menus, panels).
+    /// Applies the appearance to the whole app (chrome, menus, panels). In
+    /// `system` mode the appearance follows the *theme's* darkness so chrome
+    /// text stays legible against themed backgrounds (a light theme → light
+    /// chrome, Nord/Dracula → dark chrome). Explicit light/dark override that.
     func applyAppearance() {
+        let named: NSAppearance.Name
         switch appearanceMode {
-        case .system: NSApp.appearance = nil
-        case .light:  NSApp.appearance = NSAppearance(named: .aqua)
-        case .dark:   NSApp.appearance = NSAppearance(named: .darkAqua)
+        case .system: named = current.isDark ? .darkAqua : .aqua
+        case .light:  named = .aqua
+        case .dark:   named = .darkAqua
         }
+        NSApp.appearance = NSAppearance(named: named)
     }
 }

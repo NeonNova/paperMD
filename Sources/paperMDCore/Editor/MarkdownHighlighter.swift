@@ -81,9 +81,13 @@ public final class MarkdownHighlighter: NSObject, NSTextStorageDelegate {
         apply(headingRE, in: storage, range: range) { match in
             let level = self.hashCount(storage, match.range)
             let size = self.headingSize(forLevel: level)
+            // Use the user's body font (resized + bold), not the system font, so
+            // headings honour the typography setting like body text does.
+            let sized = NSFont(descriptor: palette.bodyFont.fontDescriptor, size: size)
+                ?? NSFont.systemFont(ofSize: size)
             return [
                 .foregroundColor: palette.heading,
-                .font: NSFont.boldSystemFont(ofSize: size),
+                .font: self.bold(sized),
             ]
         }
         apply(boldRE, in: storage, range: range) { _ in

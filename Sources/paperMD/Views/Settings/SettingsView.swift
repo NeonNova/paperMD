@@ -100,13 +100,23 @@ private struct TypographySettings: View {
 
     var body: some View {
         Form {
-            Section("Body") {
+            Section("Interface") {
+                fontPicker(selection: $theme.interfaceFontName)
+                sizeStepper(value: $theme.interfaceSize, range: 11...18)
+                Text("Sidebar, tabs, and controls.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Text") {
                 fontPicker(selection: $theme.bodyFontName)
-                Stepper("Size: \(Int(theme.bodySize)) pt", value: $theme.bodySize, in: 11...24)
+                sizeStepper(value: $theme.bodySize, range: 11...30)
+                Text("Editor and preview body text and headings.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section("Code") {
                 fontPicker(selection: $theme.codeFontName)
-                Stepper("Size: \(Int(theme.codeSize)) pt", value: $theme.codeSize, in: 10...20)
+                sizeStepper(value: $theme.codeSize, range: 10...22)
+                Text("Code spans and fenced code blocks.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
@@ -114,10 +124,14 @@ private struct TypographySettings: View {
 
     private func fontPicker(selection: Binding<String>) -> some View {
         Picker("Font", selection: selection) {
-            Text("System").tag("")
+            Text("System Default").tag("")
             Divider()
             ForEach(families, id: \.self) { Text($0).tag($0) }
         }
+    }
+
+    private func sizeStepper(value: Binding<Double>, range: ClosedRange<Double>) -> some View {
+        Stepper("Size: \(Int(value.wrappedValue)) pt", value: value, in: range)
     }
 }
 

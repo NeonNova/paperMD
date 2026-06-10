@@ -6,22 +6,27 @@ import paperMDCore
 /// Double-click opens a markdown file in a tab.
 struct FileTreeView: View {
     @Bindable var workspace: WorkspaceViewModel
+    var theme: ThemeManager
 
     var body: some View {
-        if let root = workspace.fileTree.root {
-            List {
-                ForEach(root.children ?? []) { node in
-                    FileNodeView(node: node, workspace: workspace)
+        Group {
+            if let root = workspace.fileTree.root {
+                List {
+                    ForEach(root.children ?? []) { node in
+                        FileNodeView(node: node, workspace: workspace)
+                    }
                 }
+                .listStyle(.sidebar)
+                .scrollContentBackground(.hidden)
+            } else {
+                VStack(spacing: 10) {
+                    Text("No folder open").foregroundStyle(.secondary)
+                    Button("Open Folder…") { workspace.showOpenFolderDialog() }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .listStyle(.sidebar)
-        } else {
-            VStack(spacing: 10) {
-                Text("No folder open").foregroundStyle(.secondary)
-                Button("Open Folder…") { workspace.showOpenFolderDialog() }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .background(Color(theme.current.surfaceColor))
     }
 }
 
@@ -45,7 +50,7 @@ private struct FileNodeView: View {
         } else {
             row(icon: "doc.text")
                 .contentShape(Rectangle())
-                .onTapGesture(count: 2) { workspace.open(node.url) }
+                .onTapGesture { workspace.open(node.url) }
         }
     }
 

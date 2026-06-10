@@ -7,6 +7,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // harmless when launched from the bundled .app.
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+        // Show tooltips quickly (default is ~1–2s). Value is in milliseconds.
+        UserDefaults.standard.register(defaults: ["NSInitialToolTipDelay": 350])
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
