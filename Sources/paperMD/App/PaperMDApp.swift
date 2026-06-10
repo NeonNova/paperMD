@@ -7,11 +7,9 @@ struct PaperMDApp: App {
 
     var body: some Scene {
         WindowGroup {
-            VStack(spacing: 8) {
-                Text("paperMD").font(.largeTitle)
-                Text("v\(paperMDVersion)").foregroundStyle(.secondary)
-            }
-            .frame(minWidth: 600, minHeight: 400)
+            MainWindowView()
+                .frame(minWidth: 600, minHeight: 400)
         }
+        .windowToolbarStyle(.unified)
     }
 }

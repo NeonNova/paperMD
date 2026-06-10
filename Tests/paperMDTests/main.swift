@@ -11,5 +11,7 @@ TestKit.suite("Version") {
 OutlineParserTests.run()
 ThemeTests.run()
 SessionTests.run()
+HighlighterTests.run()
+FileServiceTests.run()
 
 TestKit.finish()

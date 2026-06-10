@@ -1,5 +1,25 @@
 <!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>paperMD preview</title></head>
-<body><div id="content"></div></body>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>paperMD preview</title>
+
+  <link rel="stylesheet" href="vendor/katex.min.css">
+  <link rel="stylesheet" href="vendor/highlight-github.min.css" id="hljs-light">
+  <link rel="stylesheet" href="vendor/highlight-github-dark.min.css" id="hljs-dark" disabled>
+  <link rel="stylesheet" href="preview.css">
+
+  <script src="vendor/markdown-it.min.js"></script>
+  <script src="vendor/markdown-it-footnote.min.js"></script>
+  <script src="vendor/markdown-it-task-lists.min.js"></script>
+  <script src="vendor/highlight.min.js"></script>
+  <script src="vendor/katex.min.js"></script>
+  <script src="vendor/katex-auto-render.min.js"></script>
+  <script src="vendor/mermaid.min.js"></script>
+</head>
+<body>
+  <article id="content"></article>
+  <script src="preview.js"></script>
+</body>
 </html>
