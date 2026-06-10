@@ -13,6 +13,10 @@ struct MainWindowView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var wordWrap = true
     @State private var didRestore = false
+    @State private var showPalette = false
+    @State private var showGoToLine = false
+    @AppStorage("hasLaunchedBefore") private var hasLaunchedBefore = false
+    @State private var showFirstLaunch = false
     @StateObject private var editorController = EditorController()
     @StateObject private var previewController = PreviewController()
 
@@ -28,12 +32,74 @@ struct MainWindowView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { _ in
             workspace.saveAll()
         }
-        .background { shortcuts }
         .tint(theme.accent)
+        .overlay(alignment: .top) { paletteOverlay }
+        .sheet(isPresented: $showGoToLine) {
+            GoToLineSheet(isPresented: $showGoToLine) { editorController.goToLine($0) }
+        }
+        .sheet(isPresented: $showFirstLaunch) {
+            FirstLaunchView(isPresented: $showFirstLaunch)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .appCommand)) { note in
+            if let command = note.object as? AppCommand { handle(command) }
+        }
         .onAppear {
             theme.applyAppearance()
-            if !didRestore { didRestore = true; workspace.restoreOnLaunch() }
+            if !didRestore {
+                didRestore = true
+                workspace.restoreOnLaunch()
+                if !hasLaunchedBefore {
+                    hasLaunchedBefore = true
+                    showFirstLaunch = true
+                }
+            }
         }
+    }
+
+    @ViewBuilder
+    private var paletteOverlay: some View {
+        if showPalette {
+            ZStack(alignment: .top) {
+                Color.black.opacity(0.001)
+                    .onTapGesture { showPalette = false }
+                CommandPaletteView(isPresented: $showPalette) { handle($0) }
+                    .padding(.top, 60)
+            }
+        }
+    }
+
+    /// Central dispatch for every command (menu bar, palette, shortcut).
+    private func handle(_ command: AppCommand) {
+        switch command {
+        case .openFile: workspace.showOpenFileDialog()
+        case .openFolder: workspace.showOpenFolderDialog()
+        case .newFile, .newTab: workspace.newUntitled()
+        case .closeTab: workspace.closeActiveTab()
+        case .toggleSidebar:
+            withAnimation { columnVisibility = columnVisibility == .all ? .detailOnly : .all }
+        case .toggleOutline: showOutline.toggle()
+        case .editMode: mode = .edit
+        case .previewMode: mode = .preview
+        case .splitMode: mode = .split
+        case .find: editorController.showFind(replace: false)
+        case .findReplace: editorController.showFind(replace: true)
+        case .goToLine: showGoToLine = true
+        case .increaseFontSize: theme.adjustBodySize(by: 1)
+        case .decreaseFontSize: theme.adjustBodySize(by: -1)
+        case .switchTheme: cycleTheme()
+        case .openSettings: openSettingsWindow()
+        case .commandPalette: showPalette.toggle()
+        }
+    }
+
+    private func cycleTheme() {
+        let names = theme.themes.map(\.name)
+        guard let i = names.firstIndex(of: theme.themeName) else { return }
+        theme.themeName = names[(i + 1) % names.count]
+    }
+
+    private func openSettingsWindow() {
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
     }
 
     // MARK: Detail pane
@@ -141,28 +207,6 @@ struct MainWindowView: View {
             Toggle(isOn: $showOutline) { Image(systemName: "list.bullet.indent") }
                 .help("Toggle outline (⌘⇧U)")
         }
-    }
-
-    // MARK: Shortcuts (invisible buttons)
-
-    private var shortcuts: some View {
-        Group {
-            Button("") { mode = .edit }.keyboardShortcut("1", modifiers: .command)
-            Button("") { mode = .split }.keyboardShortcut("2", modifiers: .command)
-            Button("") { mode = .preview }.keyboardShortcut("3", modifiers: .command)
-            Button("") { withAnimation { columnVisibility = columnVisibility == .all ? .detailOnly : .all } }
-                .keyboardShortcut("e", modifiers: [.command, .shift])
-            Button("") { showOutline.toggle() }.keyboardShortcut("u", modifiers: [.command, .shift])
-            Button("") { workspace.newUntitled() }.keyboardShortcut("t", modifiers: .command)
-            Button("") { workspace.closeActiveTab() }.keyboardShortcut("w", modifiers: .command)
-            Button("") { workspace.selectNextTab() }.keyboardShortcut(.tab, modifiers: .control)
-            Button("") { workspace.selectPreviousTab() }.keyboardShortcut(.tab, modifiers: [.control, .shift])
-            Button("") { workspace.saveActive() }.keyboardShortcut("s", modifiers: .command)
-            Button("") { theme.adjustBodySize(by: 1) }.keyboardShortcut("+", modifiers: .command)
-            Button("") { theme.adjustBodySize(by: 1) }.keyboardShortcut("=", modifiers: .command)
-            Button("") { theme.adjustBodySize(by: -1) }.keyboardShortcut("-", modifiers: .command)
-        }
-        .opacity(0)
     }
 
     private func handleDrop(_ urls: [URL]) {

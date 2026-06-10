@@ -16,5 +16,6 @@ FileServiceTests.run()
 FileTreeTests.run()
 SessionStoreTests.run()
 ThemeLoaderTests.run()
+FuzzyMatcherTests.run()
 
 TestKit.finish()
