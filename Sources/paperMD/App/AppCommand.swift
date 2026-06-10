@@ -10,6 +10,7 @@ enum AppCommand: String, CaseIterable, Identifiable {
     case editMode, previewMode, splitMode
     case find, findReplace, goToLine
     case increaseFontSize, decreaseFontSize
+    case toggleFullWidth
     case switchTheme, openSettings, commandPalette
 
     var id: String { rawValue }
@@ -32,6 +33,7 @@ enum AppCommand: String, CaseIterable, Identifiable {
         case .goToLine: return "Go To Line"
         case .increaseFontSize: return "Increase Font Size"
         case .decreaseFontSize: return "Decrease Font Size"
+        case .toggleFullWidth: return "Toggle Full Width"
         case .switchTheme: return "Switch Theme"
         case .openSettings: return "Open Settings"
         case .commandPalette: return "Command Palette"
@@ -55,6 +57,7 @@ enum AppCommand: String, CaseIterable, Identifiable {
         case .goToLine: return "⌘L"
         case .increaseFontSize: return "⌘+"
         case .decreaseFontSize: return "⌘-"
+        case .toggleFullWidth: return "⌃⌘F"
         case .openSettings: return "⌘,"
         case .commandPalette: return "⇧⌘P"
         default: return nil

@@ -10,9 +10,12 @@ struct MainWindowView: View {
     @AppStorage("editorMode") private var mode: EditorMode = .edit
     @AppStorage("previewDebounceMs") private var previewDebounceMs: Int = 200
     @AppStorage("showOutline") private var showOutline = false
+    @AppStorage("fullWidth") private var fullWidth = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var wordWrap = true
     @State private var didRestore = false
+    @State private var zoomHovering = false
+    @State private var zoomActive = false
     @State private var showPalette = false
     @State private var showGoToLine = false
     @AppStorage("hasLaunchedBefore") private var hasLaunchedBefore = false
@@ -90,6 +93,7 @@ struct MainWindowView: View {
         case .goToLine: showGoToLine = true
         case .increaseFontSize: theme.adjustBodySize(by: 1)
         case .decreaseFontSize: theme.adjustBodySize(by: -1)
+        case .toggleFullWidth: fullWidth.toggle()
         case .switchTheme: cycleTheme()
         case .openSettings: openSettingsWindow()
         case .commandPalette: showPalette.toggle()
@@ -134,34 +138,40 @@ struct MainWindowView: View {
                     .frame(width: 220)
                 }
             }
-            if workspace.active != nil {
-                Divider()
-                zoomBar
+            .overlay(alignment: .bottomTrailing) {
+                if workspace.active != nil { zoomControl }
             }
         }
     }
 
-    /// Bottom status bar with a zoom slider (controls editor/preview font size),
-    /// like the zoom control in native Mac apps.
-    private var zoomBar: some View {
-        HStack(spacing: 8) {
-            Spacer()
-            Button { theme.adjustBodySize(by: -1) } label: { Image(systemName: "textformat.size.smaller") }
-                .buttonStyle(.plain).help("Smaller")
-            Slider(value: Binding(get: { theme.bodySize },
-                                  set: { theme.bodySize = $0.rounded() }),
-                   in: 11...30)
-                .frame(width: 120)
-                .controlSize(.mini)
-            Button { theme.adjustBodySize(by: 1) } label: { Image(systemName: "textformat.size.larger") }
-                .buttonStyle(.plain).help("Larger")
-            Text("\(Int(theme.bodySize)) pt")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
-                .frame(width: 36, alignment: .trailing)
+    /// Non-invasive floating zoom control (bottom-right). Normally just a faint
+    /// icon; the slider and size reveal on hover, and the value shows while
+    /// dragging — like the zoom affordance in native Mac apps.
+    private var zoomControl: some View {
+        HStack(spacing: 6) {
+            if zoomActive {
+                Text("\(Int(theme.bodySize)) pt")
+                    .font(.system(size: 10)).foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            if zoomHovering || zoomActive {
+                Slider(value: Binding(get: { theme.bodySize },
+                                      set: { theme.bodySize = $0.rounded() }),
+                       in: 11...30) { editing in zoomActive = editing }
+                    .frame(width: 90)
+                    .controlSize(.mini)
+            }
+            Image(systemName: "textformat.size")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 12)
-        .frame(height: 26)
-        .background(Color(theme.current.surfaceColor))
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .glassEffect(.regular, in: .capsule)
+        .opacity(zoomHovering || zoomActive ? 1 : 0.45)
+        .padding(8)
+        .onHover { zoomHovering = $0 }
+        .animation(.easeInOut(duration: 0.15), value: zoomHovering)
+        .animation(.easeInOut(duration: 0.15), value: zoomActive)
     }
 
     @ViewBuilder
@@ -190,7 +200,8 @@ struct MainWindowView: View {
             text: doc.text,
             baseDirectory: doc.url?.deletingLastPathComponent(),
             debounceMs: previewDebounceMs,
-            themeVars: theme.cssVars,
+            themeVars: theme.cssVars.merging(
+                ["content-width": fullWidth ? "100%" : "820px"]) { _, new in new },
             controller: previewController
         )
         .frame(minWidth: 240)
@@ -231,13 +242,27 @@ struct MainWindowView: View {
             }
             .pickerStyle(.segmented)
             .help("Edit / Split / Preview  (⌘1 / ⌘2 / ⌘3)")
+            .disabled(hasNoDocument)
         }
         ToolbarItemGroup {
-            Toggle(isOn: $wordWrap) { Image(systemName: "text.word.spacing") }
-                .help("Word wrap")
-            Toggle(isOn: $showOutline) { Image(systemName: "list.bullet.indent") }
-                .help("Toggle outline (⌘⇧U)")
+            activeButton("text.word.spacing", on: wordWrap, help: "Word wrap") { wordWrap.toggle() }
+            activeButton("list.bullet.indent", on: showOutline, help: "Toggle outline (⇧⌘U)") { showOutline.toggle() }
+            activeButton("arrow.left.and.right", on: fullWidth, help: "Full width (⌃⌘F)") { fullWidth.toggle() }
         }
+    }
+
+    private var hasNoDocument: Bool { workspace.active == nil }
+
+    /// Toolbar button that shows an accent tint when active and greys out when no
+    /// document is open — consistent across all three (no Toggle "pressed" look).
+    private func activeButton(_ symbol: String, on: Bool, help: String,
+                              action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .foregroundStyle(on ? AnyShapeStyle(theme.accent) : AnyShapeStyle(.secondary))
+        }
+        .help(help)
+        .disabled(hasNoDocument)
     }
 
     private func handleDrop(_ urls: [URL]) {

@@ -45,6 +45,7 @@ struct PaperMDApp: App {
             Divider()
             Button("Toggle Sidebar") { post(.toggleSidebar) }.keyboardShortcut("e", modifiers: [.command, .shift])
             Button("Toggle Outline") { post(.toggleOutline) }.keyboardShortcut("u", modifiers: [.command, .shift])
+            Button("Toggle Full Width") { post(.toggleFullWidth) }.keyboardShortcut("f", modifiers: [.command, .control])
             Divider()
             Button("Increase Font Size") { post(.increaseFontSize) }.keyboardShortcut("+")
             Button("Decrease Font Size") { post(.decreaseFontSize) }.keyboardShortcut("-")

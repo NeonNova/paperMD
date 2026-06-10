@@ -18,7 +18,7 @@ html, body {
 
 #content {
   box-sizing: border-box;
-  max-width: 820px;
+  max-width: var(--content-width, 820px);
   margin: 0 auto;
   padding: 28px 40px 80px;
   font-family: var(--body-font);

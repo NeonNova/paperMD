@@ -17,7 +17,7 @@ struct SettingsView: View {
             AdvancedSettings()
                 .tabItem { Label("Advanced", systemImage: "gearshape.2") }
         }
-        .frame(width: 460, height: 360)
+        .frame(width: 480, height: 400)
     }
 }
 
@@ -26,6 +26,8 @@ struct SettingsView: View {
 private struct AppearanceSettings: View {
     @State private var theme = ThemeManager.shared
 
+    private let columns = [GridItem(.adaptive(minimum: 200), spacing: 8)]
+
     var body: some View {
         Form {
             Picker("Appearance", selection: $theme.appearanceMode) {
@@ -33,49 +35,48 @@ private struct AppearanceSettings: View {
             }
             .pickerStyle(.segmented)
 
-            Section("Theme") {
-                ScrollView {
-                    LazyVStack(spacing: 4) {
-                        ForEach(theme.themes) { t in
-                            themeRow(t)
-                        }
-                    }
+            Section {
+                LazyVGrid(columns: columns, spacing: 8) {
+                    ForEach(theme.themes) { themeCard($0) }
                 }
-                .frame(height: 150)
-
+                .padding(.vertical, 4)
+            } header: {
                 HStack {
-                    Button("Import…") { importTheme() }
-                    Button("Export Current…") { exportTheme() }
+                    Text("Theme")
+                    Spacer()
+                    Button("Import…") { importTheme() }.controlSize(.small)
+                    Button("Export…") { exportTheme() }.controlSize(.small)
                 }
             }
         }
         .formStyle(.grouped)
     }
 
-    private func themeRow(_ t: Theme) -> some View {
-        HStack(spacing: 8) {
-            HStack(spacing: 2) {
-                swatch(t.colors.background); swatch(t.colors.surface)
-                swatch(t.colors.text); swatch(t.colors.accent)
+    private func themeCard(_ t: Theme) -> some View {
+        let selected = t.name == theme.themeName
+        return HStack(spacing: 8) {
+            // Mini preview chip: background with text + accent dots.
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 5).fill(Color(NSColor(hex: t.colors.background) ?? .gray))
+                HStack(spacing: 3) {
+                    Circle().fill(Color(NSColor(hex: t.colors.text) ?? .gray)).frame(width: 6, height: 6)
+                    Circle().fill(Color(NSColor(hex: t.colors.accent) ?? .gray)).frame(width: 6, height: 6)
+                }.padding(.leading, 6)
             }
-            Text(t.name)
-            Spacer()
-            if t.name == theme.themeName {
-                Image(systemName: "checkmark").foregroundStyle(.tint)
-            }
+            .frame(width: 34, height: 22)
+            .overlay(RoundedRectangle(cornerRadius: 5).stroke(.secondary.opacity(0.25)))
+
+            Text(t.name).lineLimit(1).font(.system(size: 12))
+            Spacer(minLength: 0)
+            if selected { Image(systemName: "checkmark.circle.fill").foregroundStyle(.tint) }
         }
-        .padding(.vertical, 4).padding(.horizontal, 8)
-        .background(t.name == theme.themeName ? Color.secondary.opacity(0.15) : .clear,
-                    in: RoundedRectangle(cornerRadius: 6))
+        .padding(.vertical, 5).padding(.horizontal, 8)
+        .background(selected ? AnyShapeStyle(.tint.opacity(0.12)) : AnyShapeStyle(Color.secondary.opacity(0.06)),
+                    in: RoundedRectangle(cornerRadius: 8))
+        .overlay(RoundedRectangle(cornerRadius: 8)
+            .stroke(selected ? AnyShapeStyle(.tint) : AnyShapeStyle(.clear), lineWidth: 1.5))
         .contentShape(Rectangle())
         .onTapGesture { theme.themeName = t.name }
-    }
-
-    private func swatch(_ hex: String) -> some View {
-        RoundedRectangle(cornerRadius: 3)
-            .fill(Color(NSColor(hex: hex) ?? .gray))
-            .frame(width: 14, height: 14)
-            .overlay(RoundedRectangle(cornerRadius: 3).stroke(.secondary.opacity(0.3)))
     }
 
     private func importTheme() {
