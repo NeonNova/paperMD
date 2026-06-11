@@ -83,26 +83,44 @@ final class MarkdownTextView: NSTextView {
         return (scrollView, textView)
     }
 
-    /// Toggles soft word wrap. When off, the container grows horizontally and a
-    /// horizontal scroller appears.
-    func setWordWrap(_ wrap: Bool) {
+    private var wrapEnabled = true
+    /// Max text column width when not full-width; nil = fill the editor.
+    private var readingMaxWidth: CGFloat?
+
+    /// Configures soft word wrap and the reading-column width. When wrap is off,
+    /// text doesn't wrap and a horizontal scroller appears. When wrap is on and
+    /// `readingMaxWidth` is set, text wraps at that comfortable column width.
+    func setLayout(wrap: Bool, readingMaxWidth: CGFloat?) {
+        self.wrapEnabled = wrap
+        self.readingMaxWidth = readingMaxWidth
+        applyLayout()
+    }
+
+    override func layout() {
+        super.layout()
+        applyLayout()
+    }
+
+    private func applyLayout() {
         guard let container = textContainer, let scrollView = enclosingScrollView else { return }
-        if wrap {
+        let available = scrollView.contentSize.width
+
+        if wrapEnabled {
             isHorizontallyResizable = false
-            container.widthTracksTextView = true
-            container.containerSize = NSSize(
-                width: scrollView.contentSize.width, height: CGFloat.greatestFiniteMagnitude)
-            maxSize = NSSize(width: scrollView.contentSize.width, height: CGFloat.greatestFiniteMagnitude)
             scrollView.hasHorizontalScroller = false
-            frame.size.width = scrollView.contentSize.width
+            let target = readingMaxWidth.map { min($0, available) } ?? available
+            container.widthTracksTextView = (readingMaxWidth == nil)
+            if abs(container.containerSize.width - target) > 0.5 {
+                container.containerSize = NSSize(width: target, height: CGFloat.greatestFiniteMagnitude)
+            }
+            maxSize = NSSize(width: available, height: CGFloat.greatestFiniteMagnitude)
         } else {
             isHorizontallyResizable = true
+            scrollView.hasHorizontalScroller = true
             container.widthTracksTextView = false
             container.containerSize = NSSize(
                 width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
             maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-            scrollView.hasHorizontalScroller = true
         }
-        needsLayout = true
     }
 }

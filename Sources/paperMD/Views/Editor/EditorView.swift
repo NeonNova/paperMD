@@ -50,6 +50,7 @@ struct EditorView: NSViewRepresentable {
     @Binding var text: String
     var palette: HighlightPalette
     var wordWrap: Bool
+    var fullWidth: Bool = true
     var controller: EditorController
     var initialCursorOffset: Int = 0
     var onCursorChange: (Int) -> Void = { _ in }
@@ -73,7 +74,7 @@ struct EditorView: NSViewRepresentable {
         context.coordinator.ruler = ruler
 
         controller.textView = textView
-        textView.setWordWrap(wordWrap)
+        textView.setLayout(wrap: wordWrap, readingMaxWidth: fullWidth ? nil : 760)
 
         // Restore caret position (from a restored session).
         let clamped = max(0, min(initialCursorOffset, (text as NSString).length))
@@ -99,7 +100,7 @@ struct EditorView: NSViewRepresentable {
         context.coordinator.highlighter?.palette = palette
         context.coordinator.ruler?.palette = palette
         applyTheme(to: textView, scrollView: scrollView)
-        textView.setWordWrap(wordWrap)
+        textView.setLayout(wrap: wordWrap, readingMaxWidth: fullWidth ? nil : 760)
     }
 
     private func applyTheme(to textView: MarkdownTextView, scrollView: NSScrollView) {

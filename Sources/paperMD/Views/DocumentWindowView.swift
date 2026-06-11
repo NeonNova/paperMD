@@ -142,6 +142,7 @@ struct DocumentWindowView: View {
             text: Binding(get: { doc.text }, set: { doc.text = $0 }),
             palette: theme.palette,
             wordWrap: wordWrap,
+            fullWidth: fullWidth,
             controller: editorController,
             initialCursorOffset: doc.cursorOffset,
             onCursorChange: { doc.cursorOffset = $0 }
