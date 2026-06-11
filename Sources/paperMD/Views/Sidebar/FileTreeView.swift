@@ -3,17 +3,19 @@ import AppKit
 import paperMDCore
 
 /// The left sidebar: a folder tree with create/rename/delete/reveal actions.
-/// Double-click opens a markdown file in a tab.
+/// Single-click a markdown file to open it (the host decides how — here, a new
+/// window that macOS groups into native tabs).
 struct FileTreeView: View {
-    @Bindable var workspace: WorkspaceViewModel
+    @Bindable var appModel: AppModel
     var theme: ThemeManager
+    var onOpen: (URL) -> Void
 
     var body: some View {
         Group {
-            if let root = workspace.fileTree.root {
+            if let root = appModel.fileTree.root {
                 List {
                     ForEach(root.children ?? []) { node in
-                        FileNodeView(node: node, workspace: workspace)
+                        FileNodeView(node: node, appModel: appModel, onOpen: onOpen)
                     }
                 }
                 .listStyle(.sidebar)
@@ -21,7 +23,7 @@ struct FileTreeView: View {
             } else {
                 VStack(spacing: 10) {
                     Text("No folder open").foregroundStyle(.secondary)
-                    Button("Open Folder…") { workspace.showOpenFolderDialog() }
+                    Button("Open Folder…") { appModel.showOpenFolderDialog() }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -30,11 +32,11 @@ struct FileTreeView: View {
     }
 }
 
-/// A single tree row, recursive for directories. A concrete `View` type can
-/// reference itself in its body (unlike a `some View`-returning function).
+/// A single tree row, recursive for directories.
 private struct FileNodeView: View {
     let node: FileTreeNode
-    @Bindable var workspace: WorkspaceViewModel
+    @Bindable var appModel: AppModel
+    var onOpen: (URL) -> Void
     @State private var isRenaming = false
     @State private var renameText = ""
 
@@ -42,7 +44,7 @@ private struct FileNodeView: View {
         if node.isDirectory {
             DisclosureGroup {
                 ForEach(node.children ?? []) { child in
-                    FileNodeView(node: child, workspace: workspace)
+                    FileNodeView(node: child, appModel: appModel, onOpen: onOpen)
                 }
             } label: {
                 row(icon: "folder")
@@ -50,7 +52,7 @@ private struct FileNodeView: View {
         } else {
             row(icon: "doc.text")
                 .contentShape(Rectangle())
-                .onTapGesture { workspace.open(node.url) }
+                .onTapGesture { onOpen(node.url) }
         }
     }
 
@@ -59,7 +61,7 @@ private struct FileNodeView: View {
             Image(systemName: icon).foregroundStyle(.secondary).frame(width: 16)
             if isRenaming {
                 TextField("Name", text: $renameText, onCommit: {
-                    workspace.rename(node.url, to: renameText)
+                    appModel.rename(node.url, to: renameText)
                     isRenaming = false
                 })
                 .textFieldStyle(.roundedBorder)
@@ -69,11 +71,11 @@ private struct FileNodeView: View {
         }
         .contextMenu {
             let directory = node.isDirectory ? node.url : node.url.deletingLastPathComponent()
-            Button("New File") { workspace.createFile(in: directory) }
-            Button("New Folder") { workspace.createFolder(in: directory) }
+            Button("New File") { appModel.createFile(in: directory) }
+            Button("New Folder") { appModel.createFolder(in: directory) }
             Divider()
             Button("Rename") { renameText = node.name; isRenaming = true }
-            Button("Delete", role: .destructive) { workspace.delete(node.url) }
+            Button("Delete", role: .destructive) { appModel.delete(node.url) }
             Divider()
             Button("Reveal in Finder") { FileService.revealInFinder(node.url) }
         }

@@ -9,27 +9,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         // Show tooltips quickly (default is ~1–2s). Value is in milliseconds.
         UserDefaults.standard.register(defaults: ["NSInitialToolTipDelay": 350])
+        // Group document windows into native tabs.
+        NSWindow.allowsAutomaticWindowTabbing = true
     }
 
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        true
-    }
-
-    /// Files opened from Finder (double-click, "Open With", drag onto the icon).
+    /// Files/folders opened from Finder (double-click, "Open With", drag onto the
+    /// icon). Queued on the AppModel; an open window drains the queue and opens a
+    /// window per file (folders update the shared sidebar).
     func application(_ application: NSApplication, open urls: [URL]) {
-        for url in urls {
-            var isDir: ObjCBool = false
-            FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
-            if isDir.boolValue {
-                WorkspaceViewModel.shared?.openFolder(url)
-            } else if FileService.isMarkdown(url) {
-                WorkspaceViewModel.shared?.open(url)
-            }
-        }
+        AppModel.shared.enqueueOpen(urls)
     }
 
-    /// Flush unsaved work and persist the session before the app quits.
+    /// Flush every open document before the app quits.
     func applicationWillTerminate(_ notification: Notification) {
-        WorkspaceViewModel.shared?.flushOnQuit()
+        DocumentViewModel.flushAll()
     }
 }

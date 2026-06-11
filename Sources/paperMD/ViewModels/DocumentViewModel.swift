@@ -28,10 +28,15 @@ final class DocumentViewModel: Identifiable {
 
     var displayName: String { url?.lastPathComponent ?? "Untitled" }
 
+    /// Weak registry of every live document, flushed on app quit.
+    private static let live = NSHashTable<DocumentViewModel>.weakObjects()
+    static func flushAll() { live.allObjects.forEach { $0.autosave() } }
+
     init(url: URL?, text: String = "") {
         self.url = url
         self.text = text
         self.lastKnownModDate = url.flatMap { FileService.modificationDate(of: $0) }
+        DocumentViewModel.live.add(self)
     }
 
     /// Opens a file from disk into a fresh document.
