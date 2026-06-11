@@ -36,9 +36,11 @@ public struct FileTreeNode: Identifiable, Equatable, Sendable {
         for entry in entries {
             let isDir = (try? entry.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
             if isDir {
-                nodes.append(FileTreeNode(
-                    url: entry, isDirectory: true,
-                    children: childNodes(of: entry, depth: depth - 1)))
+                // Only show folders that contain markdown somewhere inside.
+                let kids = childNodes(of: entry, depth: depth - 1)
+                if !kids.isEmpty {
+                    nodes.append(FileTreeNode(url: entry, isDirectory: true, children: kids))
+                }
             } else if FileService.isMarkdown(entry) {
                 nodes.append(FileTreeNode(url: entry, isDirectory: false))
             }

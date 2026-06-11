@@ -30,6 +30,14 @@ enum FileTreeTests {
 
             let fileNode = tree.children?.first { $0.name == "a.md" }
             TestKit.expect(fileNode?.children == nil, "files have nil children")
+
+            // Empty folders (no markdown inside) are hidden.
+            let empty = root.appendingPathComponent("emptydir")
+            try? fm.createDirectory(at: empty, withIntermediateDirectories: true)
+            try? "plain".write(to: empty.appendingPathComponent("notes.txt"), atomically: true, encoding: .utf8)
+            let tree2 = FileTreeNode.build(at: root)
+            TestKit.expect(!(tree2.children ?? []).contains { $0.name == "emptydir" },
+                           "folders with no markdown are hidden")
         }
     }
 }
