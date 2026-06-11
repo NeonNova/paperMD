@@ -53,6 +53,7 @@ struct MainWindowView: View {
         .tint(theme.accent)
         .font(theme.interfaceFont)
         .background(WindowThemer(background: theme.current.backgroundColor))
+        .background(TitlebarTabsInstaller(workspace: workspace, theme: theme))
         .sheet(isPresented: $showGoToLine) {
             GoToLineSheet(isPresented: $showGoToLine) { editorController.goToLine($0) }
         }
@@ -115,10 +116,6 @@ struct MainWindowView: View {
     @ViewBuilder
     private var detailPane: some View {
         VStack(spacing: 0) {
-            if !workspace.documents.isEmpty {
-                TabBarView(workspace: workspace, theme: theme)
-                Divider()
-            }
             HStack(spacing: 0) {
                 Group {
                     if let doc = workspace.active {
