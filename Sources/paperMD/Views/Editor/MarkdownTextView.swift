@@ -5,31 +5,48 @@ import AppKit
 /// (by touching `layoutManager` at setup) so the ruler and text-storage
 /// highlighting use the mature classic APIs.
 final class MarkdownTextView: NSTextView {
-    /// Subtle highlight drawn behind the line containing the caret.
-    var lineHighlightColor: NSColor = .clear { didSet { needsDisplay = true } }
+    /// Mouse tracking so the gutter can show which line the pointer is over.
+    private var hoverTracking: NSTrackingArea?
 
-    /// Draws the current-line highlight beneath the text. `drawsBackground` is
-    /// off (the scroll view paints the background), so the highlight sits over
-    /// the background and under the glyphs.
-    override func draw(_ dirtyRect: NSRect) {
-        if lineHighlightColor != .clear, let rect = currentLineRect() {
-            lineHighlightColor.setFill()
-            rect.fill()
-        }
-        super.draw(dirtyRect)
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverTracking { removeTrackingArea(hoverTracking) }
+        let area = NSTrackingArea(
+            rect: .zero,
+            options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+            owner: self, userInfo: nil)
+        addTrackingArea(area)
+        hoverTracking = area
     }
 
-    private func currentLineRect() -> NSRect? {
-        guard let layoutManager, let textContainer else { return nil }
+    override func mouseMoved(with event: NSEvent) {
+        super.mouseMoved(with: event)
+        guard let layoutManager, let textContainer else { return }
+        var point = convert(event.locationInWindow, from: nil)
+        point.x -= textContainerInset.width
+        point.y -= textContainerInset.height
+        let glyph = layoutManager.glyphIndex(for: point, in: textContainer)
+        let charIndex = layoutManager.characterIndexForGlyph(at: glyph)
+        ruler?.hoveredLine = lineNumber(at: charIndex)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        ruler?.hoveredLine = nil
+    }
+
+    private var ruler: LineNumberRulerView? {
+        enclosingScrollView?.verticalRulerView as? LineNumberRulerView
+    }
+
+    /// 1-based line number containing `charIndex` (counts preceding newlines).
+    private func lineNumber(at charIndex: Int) -> Int {
         let ns = string as NSString
-        let caret = min(selectedRange().location, ns.length)
-        let lineRange = ns.lineRange(for: NSRange(location: caret, length: 0))
-        let glyphRange = layoutManager.glyphRange(forCharacterRange: lineRange, actualCharacterRange: nil)
-        var rect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
-        rect.origin.x = 0
-        rect.origin.y += textContainerInset.height
-        rect.size.width = bounds.width
-        return rect
+        let clamped = min(max(0, charIndex), ns.length)
+        var line = 1
+        var i = 0
+        while i < clamped { if ns.character(at: i) == 0x0A { line += 1 }; i += 1 }
+        return line
     }
 
     static func makeScrollView() -> (scrollView: NSScrollView, textView: MarkdownTextView) {

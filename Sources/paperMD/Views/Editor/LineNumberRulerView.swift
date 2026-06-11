@@ -9,6 +9,8 @@ import paperMDCore
 final class LineNumberRulerView: NSRulerView {
     private weak var textView: NSTextView?
     var palette: HighlightPalette { didSet { needsDisplay = true } }
+    /// Line the mouse is currently hovering (1-based), highlighted in the gutter.
+    var hoveredLine: Int? { didSet { if oldValue != hoveredLine { needsDisplay = true } } }
 
     init(textView: NSTextView, palette: HighlightPalette) {
         self.textView = textView
@@ -66,6 +68,11 @@ final class LineNumberRulerView: NSRulerView {
             i += 1
         }
 
+        let hoverAttrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .semibold),
+            .foregroundColor: palette.heading,
+        ]
+
         var index = charRange.location
         while index < NSMaxRange(charRange) {
             let lineRange = content.lineRange(for: NSRange(location: index, length: 0))
@@ -75,11 +82,22 @@ final class LineNumberRulerView: NSRulerView {
                 forGlyphAt: firstFragmentGlyph, effectiveRange: &effectiveRange)
 
             let y = fragmentRect.minY + inset - visibleRect.minY
+            let isHovered = (lineNumber == hoveredLine)
             let label = "\(lineNumber)" as NSString
-            let size = label.size(withAttributes: attrs)
-            label.draw(
-                at: NSPoint(x: ruleThickness - size.width - 5, y: y + (fragmentRect.height - size.height) / 2),
-                withAttributes: attrs)
+            let size = label.size(withAttributes: isHovered ? hoverAttrs : attrs)
+            let textY = y + (fragmentRect.height - size.height) / 2
+
+            if isHovered {
+                // Tasteful pill behind the hovered line number.
+                let pill = NSRect(x: 3, y: y + 1, width: ruleThickness - 6,
+                                  height: max(fragmentRect.height - 2, 14))
+                let path = NSBezierPath(roundedRect: pill, xRadius: 4, yRadius: 4)
+                palette.heading.withAlphaComponent(0.14).setFill()
+                path.fill()
+            }
+
+            label.draw(at: NSPoint(x: ruleThickness - size.width - 6, y: textY),
+                       withAttributes: isHovered ? hoverAttrs : attrs)
 
             lineNumber += 1
             index = NSMaxRange(lineRange)

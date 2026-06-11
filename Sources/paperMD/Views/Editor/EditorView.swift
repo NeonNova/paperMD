@@ -106,7 +106,6 @@ struct EditorView: NSViewRepresentable {
         textView.backgroundColor = palette.background
         textView.insertionPointColor = palette.heading
         textView.selectedTextAttributes = [.backgroundColor: palette.heading.withAlphaComponent(0.25)]
-        textView.lineHighlightColor = palette.heading.withAlphaComponent(0.07)
         scrollView.backgroundColor = palette.background
         scrollView.drawsBackground = true
     }
@@ -125,7 +124,6 @@ struct EditorView: NSViewRepresentable {
 
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
-            textView.needsDisplay = true   // move the current-line highlight
             parent.onCursorChange(textView.selectedRange().location)
         }
     }
